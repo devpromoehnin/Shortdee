@@ -1,0 +1,8 @@
+{
+  "//": "Root tsconfig — editor-only. Each package extends @clipdee/config/typescript/*.",
+  "files": [],
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true
+  }
+}

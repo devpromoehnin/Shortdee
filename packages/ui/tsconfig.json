@@ -1,0 +1,4 @@
+{
+  "extends": "@clipdee/config/typescript/node.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

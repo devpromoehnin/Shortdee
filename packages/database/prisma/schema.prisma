@@ -1,0 +1,207 @@
+// ClipDee — Prisma schema
+// Source of truth for the database. See ARCHITECTURE.md §5 for ERD.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum Platform {
+  TIKTOK
+  FACEBOOK
+  SHOPEE
+  UPLOAD
+}
+
+enum ProcessStatus {
+  PENDING_UPLOAD
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum MomentType {
+  CF
+  PRODUCT_SHOWCASE
+  CUSTOMER_QA
+  PRICE_PROMO
+  STORYTELLING
+  URGENCY
+  REACTION_PEAK
+}
+
+enum ClipStatus {
+  DRAFT
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum UsageType {
+  PROCESSING
+  OVERAGE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+// ─────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String?
+  plan             Plan     @default(FREE)
+  creditsMinutes   Int      @default(240) // free tier: 4hr
+  creditsResetAt   DateTime @default(now())
+  stripeCustomerId String?
+  omiseCustomerId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  liveStreams    LiveStream[]
+  clips          Clip[]
+  usageLogs      UsageLog[]
+  socialAccounts SocialAccount[]
+  subscription   Subscription?
+
+  @@map("users")
+}
+
+model LiveStream {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceUrl       String?
+  platform        Platform
+  title           String?
+  durationSeconds Int           @default(0)
+  status          ProcessStatus @default(PENDING_UPLOAD)
+  storageKey      String
+  errorMessage    String?
+  metadata        Json          @default("{}")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  processedAt     DateTime?
+
+  moments   Moment[]
+  clips     Clip[]
+  usageLogs UsageLog[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("live_streams")
+}
+
+model Moment {
+  id             String     @id @default(uuid())
+  liveStreamId   String
+  liveStream     LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+  startTimeSec   Float
+  endTimeSec     Float
+  momentType     MomentType
+  clipDeeScore   Float // 0-100
+  transcript     String
+  commentDensity Float?
+  audioEnergy    Float      @default(0)
+  hookText       String?
+  reasoning      String?
+  embedding      Unsupported("vector(768)")?
+  createdAt      DateTime   @default(now())
+
+  clip Clip?
+
+  @@index([liveStreamId, startTimeSec])
+  @@map("moments")
+}
+
+model Clip {
+  id           String     @id @default(uuid())
+  momentId     String     @unique
+  moment       Moment     @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  liveStreamId String
+  liveStream   LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outputKey    String
+  thumbnailKey String?
+  captionText  String
+  durationSec  Float
+  status       ClipStatus @default(DRAFT)
+  publishedTo  Json       @default("{}")
+  analytics    Json       @default("{}")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@map("clips")
+}
+
+model SocialAccount {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform     Platform
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, platform])
+  @@map("social_accounts")
+}
+
+model UsageLog {
+  id           String      @id @default(uuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minutesUsed  Float
+  liveStreamId String?
+  liveStream   LiveStream? @relation(fields: [liveStreamId], references: [id], onDelete: SetNull)
+  type         UsageType   @default(PROCESSING)
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@map("usage_logs")
+}
+
+model Subscription {
+  id                  String             @id @default(uuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                Plan
+  status              SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  cancelAtPeriodEnd   Boolean            @default(false)
+  omiseSubscriptionId String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
