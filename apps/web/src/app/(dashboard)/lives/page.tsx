@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { LiveStreamDTO, ProcessStatus } from '@clipdee/types'
 import { UploadDropzone } from '@/components/shared/upload-dropzone'
 import { apiFetch } from '@/lib/api/client'
@@ -21,6 +22,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function LivesPage() {
+  const router = useRouter()
   const [lives, setLives] = useState<LiveStreamDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,7 +94,11 @@ export default function LivesPage() {
               {lives.map((live) => {
                 const badge = STATUS_BADGE[live.status]
                 return (
-                  <tr key={live.id} className="transition hover:bg-secondary/5">
+                  <tr
+                    key={live.id}
+                    onClick={() => router.push(`/lives/${live.id}`)}
+                    className="cursor-pointer transition hover:bg-secondary/5"
+                  >
                     <td className="px-4 py-3 font-medium text-ink">{live.title ?? 'ไม่มีชื่อ'}</td>
                     <td className="px-4 py-3 text-ink/60">
                       {formatDuration(live.durationSeconds)}
