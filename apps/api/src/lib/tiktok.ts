@@ -11,8 +11,12 @@ const AUTHORIZE_URL = 'https://www.tiktok.com/v2/auth/authorize/'
 const TOKEN_URL = 'https://open.tiktokapis.com/v2/oauth/token/'
 const SCOPES = 'user.info.basic,video.upload'
 
-/** Must exactly match the redirect URI registered in the TikTok app. */
-export const TIKTOK_REDIRECT_URI = `${env.WEB_ORIGIN}/auth/tiktok/callback`
+/**
+ * Must exactly match the redirect URI registered in the TikTok app.
+ * TikTok rejects localhost — set TIKTOK_REDIRECT_URI to the tunnel URL in dev.
+ */
+export const TIKTOK_REDIRECT_URI =
+  env.TIKTOK_REDIRECT_URI ?? `${env.WEB_ORIGIN}/auth/tiktok/callback`
 
 export function isTikTokConfigured(): boolean {
   return Boolean(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET)

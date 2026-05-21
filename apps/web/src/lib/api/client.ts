@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/client'
 
-/** Base URL of the Fastify API gateway. */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
+/**
+ * Calls the API gateway with the current Supabase session token attached.
+ * Requests are same-origin (`/api/...`) and proxied to the API by a Next
+ * rewrite — so the app works behind an HTTPS tunnel without CORS issues.
+ * Unwraps the `{ data }` envelope, or throws with the API error message.
+ */
 async function authHeaders(): Promise<Record<string, string>> {
   const supabase = createClient()
   const {
@@ -11,12 +14,8 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session ? { Authorization: `Bearer ${session.access_token}` } : {}
 }
 
-/**
- * Calls the API gateway with the current Supabase session token attached.
- * Unwraps the `{ data }` envelope, or throws with the API error message.
- */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(path, {
     ...init,
     headers: {
       // Only declare a JSON body when one is actually sent — Fastify rejects

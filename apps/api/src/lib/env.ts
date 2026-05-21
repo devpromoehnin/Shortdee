@@ -31,6 +31,8 @@ const envSchema = z.object({
   // TikTok publishing (Phase 7) — optional until configured.
   TIKTOK_CLIENT_KEY: z.string().optional(),
   TIKTOK_CLIENT_SECRET: z.string().optional(),
+  // Public OAuth callback URL — set to the tunnel (ngrok) URL in dev.
+  TIKTOK_REDIRECT_URI: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

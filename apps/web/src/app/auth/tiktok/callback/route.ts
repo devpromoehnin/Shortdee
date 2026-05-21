@@ -2,7 +2,8 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+// Server-side internal call — always the local API gateway.
+const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:3001'
 
 /**
  * TikTok OAuth callback — TikTok redirects here with a `code`. We pair it with
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login`)
   }
 
-  const res = await fetch(`${API_URL}/api/integrations/tiktok/callback`, {
+  const res = await fetch(`${API_ORIGIN}/api/integrations/tiktok/callback`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
