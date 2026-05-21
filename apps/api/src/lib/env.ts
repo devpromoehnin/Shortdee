@@ -28,6 +28,9 @@ const envSchema = z.object({
   R2_BUCKET_UPLOADS: z.string().default('clipdee-uploads'),
   R2_BUCKET_CLIPS: z.string().default('clipdee-clips'),
   R2_PUBLIC_URL: z.string().optional(),
+  // TikTok publishing (Phase 7) — optional until configured.
+  TIKTOK_CLIENT_KEY: z.string().optional(),
+  TIKTOK_CLIENT_SECRET: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

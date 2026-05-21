@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth.js'
 import { livesRoutes } from './routes/lives.js'
 import { clipsRoutes } from './routes/clips.js'
 import { jobsRoutes } from './routes/jobs.js'
+import { integrationsRoutes } from './routes/integrations.js'
 import { webhookRoutes } from './routes/webhooks.js'
 
 /** Build a configured Fastify instance (no listening). */
@@ -65,6 +66,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(livesRoutes, { prefix: '/api/lives' })
   await app.register(clipsRoutes, { prefix: '/api/clips' })
   await app.register(jobsRoutes, { prefix: '/api/jobs' })
+  await app.register(integrationsRoutes, { prefix: '/api/integrations' })
   await app.register(webhookRoutes, { prefix: '/api/webhooks' })
 
   return app
