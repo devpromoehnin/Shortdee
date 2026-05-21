@@ -75,29 +75,55 @@ export async function clipsRoutes(app: FastifyInstance): Promise<void> {
     },
   )
 
-  // PATCH /api/clips/:id — approve / reject / reset a clip.
+  // PATCH /api/clips/:id — review status, and edit the hook / moment type.
+  // hookText + momentType live on the related Moment.
   r.patch(
     '/:id',
     {
       schema: {
         params: z.object({ id: z.string().uuid() }),
-        body: z.object({ status: z.enum(['DRAFT', 'APPROVED', 'REJECTED']) }),
+        body: z
+          .object({
+            status: z.enum(['DRAFT', 'APPROVED', 'REJECTED']).optional(),
+            hookText: z.string().max(120).optional(),
+            momentType: z
+              .enum([
+                'CF',
+                'PRODUCT_SHOWCASE',
+                'CUSTOMER_QA',
+                'PRICE_PROMO',
+                'STORYTELLING',
+                'URGENCY',
+                'REACTION_PEAK',
+              ])
+              .optional(),
+          })
+          .refine((b) => Object.keys(b).length > 0, { message: 'ไม่มีข้อมูลที่จะอัปเดต' }),
       },
     },
     async (request) => {
       const userId = requireUserId(request)
+      const { status, hookText, momentType } = request.body
+
       const clip = await prisma.clip.findUnique({
         where: { id: request.params.id },
-        select: { userId: true },
+        select: { userId: true, momentId: true },
       })
       if (!clip || clip.userId !== userId) throw Errors.notFound('ไม่พบคลิป')
 
-      const updated = await prisma.clip.update({
-        where: { id: request.params.id },
-        data: { status: request.body.status },
-        select: { id: true, status: true },
-      })
-      return { data: updated }
+      if (status) {
+        await prisma.clip.update({ where: { id: request.params.id }, data: { status } })
+      }
+      if (hookText !== undefined || momentType !== undefined) {
+        await prisma.moment.update({
+          where: { id: clip.momentId },
+          data: {
+            ...(hookText !== undefined ? { hookText } : {}),
+            ...(momentType !== undefined ? { momentType } : {}),
+          },
+        })
+      }
+      return { data: { id: request.params.id, status, hookText, momentType } }
     },
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ClipStatus, MomentType } from '@clipdee/types'
+import { MOMENT_TYPES, type ClipStatus, type MomentType } from '@clipdee/types'
 import { apiFetch } from '@/lib/api/client'
 
 interface ClipItem {
@@ -49,6 +49,7 @@ export default function ClipsPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterKey>('ALL')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [editing, setEditing] = useState<ClipItem | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -68,10 +69,7 @@ export default function ClipsPage() {
   async function setStatus(id: string, status: ClipStatus) {
     setBusyId(id)
     try {
-      await apiFetch(`/api/clips/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      })
+      await apiFetch(`/api/clips/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
       setClips((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'อัปเดตสถานะไม่สำเร็จ')
@@ -80,11 +78,14 @@ export default function ClipsPage() {
     }
   }
 
+  function applyEdit(id: string, hookText: string, momentType: MomentType) {
+    setClips((prev) => prev.map((c) => (c.id === id ? { ...c, hookText, momentType } : c)))
+  }
+
   const visible = useMemo(
     () => (filter === 'ALL' ? clips : clips.filter((c) => c.status === filter)),
     [clips, filter],
   )
-
   const approvedCount = clips.filter((c) => c.status === 'APPROVED').length
 
   return (
@@ -129,9 +130,21 @@ export default function ClipsPage() {
               clip={clip}
               busy={busyId === clip.id}
               onSetStatus={setStatus}
+              onEdit={() => setEditing(clip)}
             />
           ))}
         </div>
+      )}
+
+      {editing && (
+        <ClipEditModal
+          clip={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(id, hook, type) => {
+            applyEdit(id, hook, type)
+            setEditing(null)
+          }}
+        />
       )}
     </div>
   )
@@ -141,9 +154,10 @@ interface ClipCardProps {
   clip: ClipItem
   busy: boolean
   onSetStatus: (id: string, status: ClipStatus) => void
+  onEdit: () => void
 }
 
-function ClipCard({ clip, busy, onSetStatus }: ClipCardProps) {
+function ClipCard({ clip, busy, onSetStatus, onEdit }: ClipCardProps) {
   const isCandidate = clip.clipDeeScore >= 65
 
   return (
@@ -191,6 +205,108 @@ function ClipCard({ clip, busy, onSetStatus }: ClipCardProps) {
             className="flex-1 rounded-lg bg-error/10 py-1.5 text-sm font-semibold text-error transition hover:bg-error/20 disabled:opacity-50"
           >
             {clip.status === 'REJECTED' ? 'เอากลับมา' : 'ปฏิเสธ'}
+          </button>
+        </div>
+        <button
+          onClick={onEdit}
+          className="mt-2 w-full text-center text-xs font-medium text-ink/50 transition hover:text-primary"
+        >
+          ✎ แก้ไข hook / ประเภท
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface ClipEditModalProps {
+  clip: ClipItem
+  onClose: () => void
+  onSaved: (id: string, hookText: string, momentType: MomentType) => void
+}
+
+function ClipEditModal({ clip, onClose, onSaved }: ClipEditModalProps) {
+  const [hook, setHook] = useState(clip.hookText ?? '')
+  const [type, setType] = useState<MomentType>(clip.momentType)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      await apiFetch(`/api/clips/${clip.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ hookText: hook, momentType: type }),
+      })
+      onSaved(clip.id, hook, type)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-xl bg-white p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold text-secondary">แก้ไขคลิป</h2>
+
+        <label className="mt-4 block text-sm font-medium text-ink">
+          Hook
+          <span className="ml-2 text-xs font-normal text-ink/40">{hook.length}/120</span>
+        </label>
+        <textarea
+          value={hook}
+          onChange={(e) => setHook(e.target.value.slice(0, 120))}
+          rows={2}
+          placeholder="ประโยคเปิดที่ดึงดูดคนดู"
+          className="mt-1 w-full rounded-lg border border-secondary/20 px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+
+        <label className="mt-4 block text-sm font-medium text-ink">ประเภท Moment</label>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as MomentType)}
+          className="mt-1 w-full rounded-lg border border-secondary/20 px-3 py-2 text-sm outline-none focus:border-primary"
+        >
+          {MOMENT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {MOMENT_LABEL[t]}
+            </option>
+          ))}
+        </select>
+
+        {error && (
+          <p className="mt-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-ink/60 transition hover:bg-secondary/5 disabled:opacity-50"
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+          >
+            {saving ? 'กำลังบันทึก...' : 'บันทึก'}
           </button>
         </div>
       </div>
