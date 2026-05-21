@@ -1,23 +1,29 @@
+import { env } from './lib/env.js'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
 import { publishClip } from './publish.js'
 
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379'
 const QUEUE_NAME = 'publishing'
 
-const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null })
+const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null })
 
 const worker = new Worker(QUEUE_NAME, publishClip, {
   connection,
-  concurrency: Number(process.env.WORKER_CONCURRENCY ?? 4),
+  concurrency: env.WORKER_CONCURRENCY,
 })
 
-worker.on('ready', () => console.info(`[publisher] listening on queue "${QUEUE_NAME}"`))
+worker.on('ready', () =>
+  console.info(
+    `[publisher] listening on "${QUEUE_NAME}" (concurrency ${env.WORKER_CONCURRENCY})`,
+  ),
+)
+worker.on('completed', (job) => console.info(`[publisher] job ${job.id} completed`))
 worker.on('failed', (job, err) =>
-  console.error(`[publisher] job ${job?.id ?? '?'} failed:`, err.message),
+  console.error(`[publisher] job ${job?.id ?? '?'} failed: ${err.message}`),
 )
 
 async function shutdown(): Promise<void> {
+  console.info('[publisher] shutting down...')
   await worker.close()
   await connection.quit()
   process.exit(0)

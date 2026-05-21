@@ -3,8 +3,9 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { prisma } from '@clipdee/database'
 import { authenticate, requireUserId } from '../middleware/auth.js'
-import { Errors } from '../lib/errors.js'
+import { Errors, AppError } from '../lib/errors.js'
 import { createDownloadUrl, R2_BUCKETS } from '../lib/r2.js'
+import { enqueuePublishJob } from '../lib/queue.js'
 
 /**
  * Clip routes — review dashboard. See commands.md Phase 6.2.
@@ -124,6 +125,39 @@ export async function clipsRoutes(app: FastifyInstance): Promise<void> {
         })
       }
       return { data: { id: request.params.id, status, hookText, momentType } }
+    },
+  )
+
+  // POST /api/clips/:id/publish — queue the clip for publishing to TikTok.
+  r.post(
+    '/:id/publish',
+    { schema: { params: z.object({ id: z.string().uuid() }) } },
+    async (request) => {
+      const userId = requireUserId(request)
+
+      const clip = await prisma.clip.findUnique({
+        where: { id: request.params.id },
+        select: { userId: true },
+      })
+      if (!clip || clip.userId !== userId) throw Errors.notFound('ไม่พบคลิป')
+
+      const tiktok = await prisma.socialAccount.findUnique({
+        where: { userId_platform: { userId, platform: 'TIKTOK' } },
+        select: { id: true },
+      })
+      if (!tiktok) {
+        throw new AppError(
+          'TIKTOK_NOT_CONNECTED',
+          'ยังไม่ได้เชื่อมต่อ TikTok — ไปเชื่อมต่อที่หน้าตั้งค่าก่อน',
+          400,
+        )
+      }
+
+      const jobId = await enqueuePublishJob({
+        clipId: request.params.id,
+        platforms: ['TIKTOK'],
+      })
+      return { data: { jobId, queued: true } }
     },
   )
 }

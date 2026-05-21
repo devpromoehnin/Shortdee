@@ -46,7 +46,7 @@ function formatTime(seconds: number): string {
 export default function ClipsPage() {
   const [clips, setClips] = useState<ClipItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [filter, setFilter] = useState<FilterKey>('ALL')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<ClipItem | null>(null)
@@ -54,9 +54,8 @@ export default function ClipsPage() {
   const load = useCallback(async () => {
     try {
       setClips(await apiFetch<ClipItem[]>('/api/clips'))
-      setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'โหลดคลิปไม่สำเร็จ')
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'โหลดคลิปไม่สำเร็จ' })
     } finally {
       setLoading(false)
     }
@@ -72,7 +71,23 @@ export default function ClipsPage() {
       await apiFetch(`/api/clips/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
       setClips((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'อัปเดตสถานะไม่สำเร็จ')
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'อัปเดตสถานะไม่สำเร็จ' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function publish(id: string) {
+    setBusyId(id)
+    setNotice(null)
+    try {
+      await apiFetch(`/api/clips/${id}/publish`, { method: 'POST' })
+      setNotice({
+        kind: 'ok',
+        text: 'ส่งเข้าคิว TikTok แล้ว — คลิปจะไปอยู่ใน drafts ของแอป TikTok ภายในสักครู่',
+      })
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'โพสต์ไม่สำเร็จ' })
     } finally {
       setBusyId(null)
     }
@@ -112,8 +127,14 @@ export default function ClipsPage() {
         ))}
       </div>
 
-      {error && (
-        <p className="mt-4 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+      {notice && (
+        <p
+          className={`mt-4 rounded-lg px-3 py-2 text-sm ${
+            notice.kind === 'ok' ? 'bg-success/15 text-success' : 'bg-error/10 text-error'
+          }`}
+        >
+          {notice.text}
+        </p>
       )}
 
       {loading ? (
@@ -130,6 +151,7 @@ export default function ClipsPage() {
               clip={clip}
               busy={busyId === clip.id}
               onSetStatus={setStatus}
+              onPublish={publish}
               onEdit={() => setEditing(clip)}
             />
           ))}
@@ -154,11 +176,13 @@ interface ClipCardProps {
   clip: ClipItem
   busy: boolean
   onSetStatus: (id: string, status: ClipStatus) => void
+  onPublish: (id: string) => void
   onEdit: () => void
 }
 
-function ClipCard({ clip, busy, onSetStatus, onEdit }: ClipCardProps) {
+function ClipCard({ clip, busy, onSetStatus, onPublish, onEdit }: ClipCardProps) {
   const isCandidate = clip.clipDeeScore >= 65
+  const published = clip.status === 'PUBLISHED'
 
   return (
     <div className="overflow-hidden rounded-xl border border-secondary/10 bg-white">
@@ -194,25 +218,36 @@ function ClipCard({ clip, busy, onSetStatus, onEdit }: ClipCardProps) {
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => onSetStatus(clip.id, 'APPROVED')}
-            disabled={busy || clip.status === 'APPROVED'}
+            disabled={busy || clip.status === 'APPROVED' || published}
             className="flex-1 rounded-lg bg-success/10 py-1.5 text-sm font-semibold text-success transition hover:bg-success/20 disabled:opacity-50"
           >
             {clip.status === 'APPROVED' ? '✓ อนุมัติแล้ว' : 'อนุมัติ'}
           </button>
           <button
             onClick={() => onSetStatus(clip.id, clip.status === 'REJECTED' ? 'DRAFT' : 'REJECTED')}
-            disabled={busy}
+            disabled={busy || published}
             className="flex-1 rounded-lg bg-error/10 py-1.5 text-sm font-semibold text-error transition hover:bg-error/20 disabled:opacity-50"
           >
             {clip.status === 'REJECTED' ? 'เอากลับมา' : 'ปฏิเสธ'}
           </button>
         </div>
+
         <button
-          onClick={onEdit}
-          className="mt-2 w-full text-center text-xs font-medium text-ink/50 transition hover:text-primary"
+          onClick={() => onPublish(clip.id)}
+          disabled={busy || published}
+          className="mt-2 w-full rounded-lg bg-secondary py-2 text-sm font-semibold text-secondary-foreground transition hover:opacity-90 disabled:opacity-50"
         >
-          ✎ แก้ไข hook / ประเภท
+          {published ? '✓ โพสต์ขึ้น TikTok แล้ว' : 'โพสต์ขึ้น TikTok'}
         </button>
+
+        {!published && (
+          <button
+            onClick={onEdit}
+            className="mt-2 w-full text-center text-xs font-medium text-ink/50 transition hover:text-primary"
+          >
+            ✎ แก้ไข hook / ประเภท
+          </button>
+        )}
       </div>
     </div>
   )
