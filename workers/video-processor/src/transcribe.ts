@@ -1,6 +1,10 @@
-import type { Job } from 'bullmq'
+import { transcribeAudio, type TranscriptSegment } from './lib/ai.js'
 
-/** Stage 2 — extract audio, call AI service POST /ai/transcribe. */
-export async function transcribeStage(_job: Job): Promise<void> {
-  throw new Error('transcribeStage not implemented — see Phase 3.2')
+/** Stage 2 — transcribe the extracted audio via the AI service (Whisper). */
+export async function transcribeStage(audioPath: string): Promise<TranscriptSegment[]> {
+  const { segments } = await transcribeAudio(audioPath)
+  if (segments.length === 0) {
+    throw new Error('ถอดเสียงไม่สำเร็จ — ไม่พบเสียงพูดในไฟล์')
+  }
+  return segments
 }
