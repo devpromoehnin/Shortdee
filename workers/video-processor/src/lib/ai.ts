@@ -1,9 +1,17 @@
+import { setGlobalDispatcher, Agent } from 'undici'
 import { env } from './env.js'
 
 /**
  * HTTP client for the ClipDee AI service (apps/ai).
  * Shapes mirror the Pydantic schemas in apps/ai/app/models/schemas.py.
  */
+
+// Transcription of a long Live can run for many minutes — disable undici's
+// default 300s header/body timeouts (0 = unlimited). Keep a connect timeout
+// so a genuinely-down AI service still fails fast.
+setGlobalDispatcher(
+  new Agent({ headersTimeout: 0, bodyTimeout: 0, connectTimeout: 15_000 }),
+)
 
 export interface TranscriptSegment {
   start: number
