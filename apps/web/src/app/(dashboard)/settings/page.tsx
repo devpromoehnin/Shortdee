@@ -41,9 +41,12 @@ export default function SettingsPage() {
   async function connectTikTok() {
     setBusy(true)
     try {
-      const { authorizeUrl } = await apiFetch<{ authorizeUrl: string }>(
-        '/api/integrations/tiktok/connect',
-      )
+      const { authorizeUrl, codeVerifier } = await apiFetch<{
+        authorizeUrl: string
+        codeVerifier: string
+      }>('/api/integrations/tiktok/connect')
+      // PKCE verifier — needed by the callback to exchange the code.
+      document.cookie = `tiktok_cv=${codeVerifier}; path=/; max-age=600; samesite=lax`
       window.location.href = authorizeUrl
     } catch (e) {
       setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'เริ่มเชื่อมต่อไม่สำเร็จ' })

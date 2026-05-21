@@ -1,8 +1,9 @@
+import { randomBytes, createHash } from 'node:crypto'
 import { env } from './env.js'
 import { AppError } from './errors.js'
 
 /**
- * TikTok OAuth (v2) — Login Kit. See commands.md Phase 7.1.
+ * TikTok OAuth (v2) — Login Kit with PKCE. See commands.md Phase 7.1.
  * The video publishing calls live in workers/publisher.
  */
 
@@ -24,8 +25,17 @@ function requireConfig(): { key: string; secret: string } {
   return { key: env.TIKTOK_CLIENT_KEY, secret: env.TIKTOK_CLIENT_SECRET }
 }
 
-/** Builds the TikTok consent URL the user is redirected to. */
-export function buildAuthorizeUrl(state: string): string {
+/** PKCE — a fresh random verifier; its SHA-256 challenge goes in the auth URL. */
+export function generateCodeVerifier(): string {
+  return randomBytes(32).toString('base64url')
+}
+
+function deriveCodeChallenge(verifier: string): string {
+  return createHash('sha256').update(verifier).digest('base64url')
+}
+
+/** Builds the TikTok consent URL the user is redirected to (PKCE S256). */
+export function buildAuthorizeUrl(state: string, codeVerifier: string): string {
   const { key } = requireConfig()
   const params = new URLSearchParams({
     client_key: key,
@@ -33,6 +43,8 @@ export function buildAuthorizeUrl(state: string): string {
     response_type: 'code',
     redirect_uri: TIKTOK_REDIRECT_URI,
     state,
+    code_challenge: deriveCodeChallenge(codeVerifier),
+    code_challenge_method: 'S256',
   })
   return `${AUTHORIZE_URL}?${params.toString()}`
 }
@@ -76,8 +88,8 @@ async function postTokenRequest(body: Record<string, string>): Promise<TikTokTok
   }
 }
 
-/** Exchanges an authorization code for access + refresh tokens. */
-export function exchangeCode(code: string): Promise<TikTokTokens> {
+/** Exchanges an authorization code (+ PKCE verifier) for tokens. */
+export function exchangeCode(code: string, codeVerifier: string): Promise<TikTokTokens> {
   const { key, secret } = requireConfig()
   return postTokenRequest({
     client_key: key,
@@ -85,6 +97,7 @@ export function exchangeCode(code: string): Promise<TikTokTokens> {
     code,
     grant_type: 'authorization_code',
     redirect_uri: TIKTOK_REDIRECT_URI,
+    code_verifier: codeVerifier,
   })
 }
 

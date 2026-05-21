@@ -4,7 +4,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { prisma } from '@clipdee/database'
 import { authenticate, requireUserId } from '../middleware/auth.js'
-import { buildAuthorizeUrl, exchangeCode } from '../lib/tiktok.js'
+import { buildAuthorizeUrl, exchangeCode, generateCodeVerifier } from '../lib/tiktok.js'
 
 /**
  * Social account integrations — OAuth connect/disconnect.
@@ -24,20 +24,25 @@ export async function integrationsRoutes(app: FastifyInstance): Promise<void> {
     return { data: accounts }
   })
 
-  // GET /api/integrations/tiktok/connect — the TikTok consent URL.
+  // GET /api/integrations/tiktok/connect — the TikTok consent URL + PKCE verifier.
   r.get('/tiktok/connect', async (request) => {
     requireUserId(request)
     const state = randomUUID()
-    return { data: { authorizeUrl: buildAuthorizeUrl(state), state } }
+    const codeVerifier = generateCodeVerifier()
+    return { data: { authorizeUrl: buildAuthorizeUrl(state, codeVerifier), codeVerifier, state } }
   })
 
   // POST /api/integrations/tiktok/callback — exchange the code, store tokens.
   r.post(
     '/tiktok/callback',
-    { schema: { body: z.object({ code: z.string().min(1) }) } },
+    {
+      schema: {
+        body: z.object({ code: z.string().min(1), codeVerifier: z.string().min(1) }),
+      },
+    },
     async (request) => {
       const userId = requireUserId(request)
-      const tokens = await exchangeCode(request.body.code)
+      const tokens = await exchangeCode(request.body.code, request.body.codeVerifier)
 
       const data = {
         accessToken: tokens.accessToken,
