@@ -21,3 +21,9 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
   request.userId = data.user.id
   request.userEmail = data.user.email ?? undefined
 }
+
+/** Returns the authenticated user id, or throws 401. Use after `authenticate`. */
+export function requireUserId(request: FastifyRequest): string {
+  if (!request.userId) throw Errors.unauthorized()
+  return request.userId
+}

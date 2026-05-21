@@ -1,15 +1,27 @@
 import type { FastifyInstance } from 'fastify'
+import type { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { authenticate } from '../middleware/auth.js'
 import { Errors } from '../lib/errors.js'
+import { getJobStatus } from '../lib/queue.js'
 
 /**
- * Background job status routes — see ARCHITECTURE.md §6.1.
- * TODO(Phase 3): job status, cancel (BullMQ).
+ * Background job status routes — see commands.md Phase 3.2.
+ * Reports BullMQ job state so the frontend can poll processing progress.
  */
 export async function jobsRoutes(app: FastifyInstance): Promise<void> {
-  app.addHook('preHandler', authenticate)
+  // onRequest runs before schema validation (see lives.ts).
+  app.addHook('onRequest', authenticate)
+  const r = app.withTypeProvider<ZodTypeProvider>()
 
-  app.get('/:id', async () => {
-    throw Errors.notFound('ยังไม่ได้ implement — ดู Phase 3')
-  })
+  // GET /api/jobs/:id — processing job state + progress.
+  r.get(
+    '/:id',
+    { schema: { params: z.object({ id: z.string().min(1) }) } },
+    async (request) => {
+      const status = await getJobStatus(request.params.id)
+      if (!status) throw Errors.notFound('ไม่พบงานประมวลผล')
+      return { data: status }
+    },
+  )
 }

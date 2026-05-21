@@ -19,6 +19,15 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   DATABASE_URL: z.string().optional(),
+  // Redis (BullMQ) + Cloudflare R2 — optional so the API still boots
+  // without them; the upload/queue endpoints fail cleanly if unset.
+  REDIS_URL: z.string().optional(),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_UPLOADS: z.string().default('clipdee-uploads'),
+  R2_BUCKET_CLIPS: z.string().default('clipdee-clips'),
+  R2_PUBLIC_URL: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)
