@@ -17,6 +17,10 @@ export async function detectMomentsStage(
   liveStreamId: string,
   segments: TranscriptSegment[],
 ): Promise<number> {
+  // Clear moments from any previous run — cascades to their clips —
+  // so re-processing a Live is idempotent.
+  await prisma.moment.deleteMany({ where: { liveStreamId } })
+
   const windows = buildWindows(segments)
   if (windows.length === 0) return 0
 

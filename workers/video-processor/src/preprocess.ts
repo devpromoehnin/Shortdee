@@ -3,6 +3,7 @@ import { downloadToFile, R2_BUCKETS } from './lib/r2.js'
 import { probeVideo, extractAudio } from './lib/ffmpeg.js'
 
 export interface PreprocessResult {
+  videoPath: string
   audioPath: string
   durationSec: number
 }
@@ -24,5 +25,5 @@ export async function preprocessStage(
   }
 
   await extractAudio(videoPath, audioPath)
-  return { audioPath, durationSec: meta.durationSec }
+  return { videoPath, audioPath, durationSec: meta.durationSec }
 }

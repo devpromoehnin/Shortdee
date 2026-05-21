@@ -1,7 +1,8 @@
-import { createWriteStream } from 'node:fs'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import { pipeline } from 'node:stream/promises'
 import type { Readable } from 'node:stream'
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { env } from './env.js'
 
 /** Cloudflare R2 (S3-compatible) client for the worker. */
@@ -30,4 +31,23 @@ export async function downloadToFile(
     throw new Error(`R2 object not found: ${bucket}/${key}`)
   }
   await pipeline(res.Body as Readable, createWriteStream(destPath))
+}
+
+/** Uploads a local file to R2. */
+export async function uploadFile(
+  bucket: string,
+  key: string,
+  localPath: string,
+  contentType: string,
+): Promise<void> {
+  const { size } = await stat(localPath)
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: createReadStream(localPath),
+      ContentType: contentType,
+      ContentLength: size,
+    }),
+  )
 }
