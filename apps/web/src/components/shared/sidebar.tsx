@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Video, Scissors, BarChart3, Settings } from 'lucide-react'
+import { LayoutDashboard, Video, Scissors, BarChart3, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -13,7 +13,11 @@ const NAV_ITEMS = [
   { href: '/settings', label: 'ตั้งค่า', icon: Settings },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  userEmail?: string
+}
+
+export function Sidebar({ userEmail }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -21,7 +25,7 @@ export function Sidebar() {
       <Link href="/dashboard" className="mb-6 px-2 text-xl font-bold text-primary">
         ClipDee
       </Link>
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`)
           return (
@@ -41,6 +45,23 @@ export function Sidebar() {
           )
         })}
       </nav>
+
+      <div className="mt-auto border-t border-secondary/10 pt-3">
+        {userEmail && (
+          <p className="truncate px-3 pb-1 text-xs text-ink/50" title={userEmail}>
+            {userEmail}
+          </p>
+        )}
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink/70 transition hover:bg-secondary/5 hover:text-ink"
+          >
+            <LogOut className="h-4 w-4" />
+            ออกจากระบบ
+          </button>
+        </form>
+      </div>
     </aside>
   )
 }

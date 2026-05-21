@@ -12,6 +12,8 @@
   "dependencies": {
     "@clipdee/types": "workspace:*",
     "@clipdee/ui": "workspace:*",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.46.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.460.0",
     "next": "^15.1.0",
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@clipdee/config": "workspace:*",
     "@types/node": "^22.7.4",
+    "dotenv": "^16.4.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
