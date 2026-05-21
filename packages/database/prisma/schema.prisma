@@ -8,7 +8,10 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // Transaction pooler (port 6543, pgbouncer) — used by the app at runtime.
   url        = env("DATABASE_URL")
+  // Session pooler (port 5432) — used by Prisma Migrate for DDL.
+  directUrl  = env("DIRECT_URL")
   extensions = [vector]
 }
 
