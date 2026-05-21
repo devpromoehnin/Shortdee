@@ -1,15 +1,15 @@
-"""Moment detection endpoint — Commerce Moment Classifier.
+"""Moment detection endpoint — Commerce Moment Classifier."""
 
-TODO(Phase 4.2): implement via MomentClassifier + GeminiService.
-"""
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.models.schemas import AnalyzeRequest, AnalyzeResult
+from app.services.moment_classifier import MomentClassifier
 
 router = APIRouter()
 
+_classifier = MomentClassifier()
+
 
 @router.post("/analyze", response_model=AnalyzeResult)
-async def analyze(_req: AnalyzeRequest) -> AnalyzeResult:
-    raise HTTPException(status_code=501, detail="Not implemented — see Phase 4.2")
+async def analyze(req: AnalyzeRequest) -> AnalyzeResult:
+    return await _classifier.classify(req)

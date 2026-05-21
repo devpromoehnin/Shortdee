@@ -1,6 +1,6 @@
 """Health check."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
@@ -12,5 +12,5 @@ async def health() -> dict:
     return {
         "status": "ok",
         "service": "clipdee-ai",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }

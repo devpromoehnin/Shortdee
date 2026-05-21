@@ -75,6 +75,16 @@ class AnalyzeResult(BaseModel):
     moments: list[MomentResult]
 
 
+class MomentClassification(BaseModel):
+    """Structured Gemini output for a single transcript window."""
+
+    moment_type: MomentType
+    confidence: float = Field(ge=0, le=1)
+    score: float = Field(ge=0, le=100)
+    hook_suggestion: str = ""
+    reasoning: str = ""
+
+
 # ── Hook generation ──
 
 
